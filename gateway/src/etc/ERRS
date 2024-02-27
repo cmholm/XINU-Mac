@@ -1,0 +1,6 @@
+cc -I.. -c atalkad.c
+cc -o atalkad atalkad.o
+cc -I.. -c atalkrd.c
+cc -o atalkrd atalkrd.o
+cc -I.. -c dl68.c
+cc -o dl68 dl68.o

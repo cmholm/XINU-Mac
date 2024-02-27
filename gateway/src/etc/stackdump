@@ -1,0 +1,147 @@
+Return-Path: <normac!tim@russell.stanford.edu>
+Received: from russell.stanford.edu by safe.stanford.edu with Sendmail; Thu, 16 Oct 86 23:28:39 pdt
+Received: by russell.stanford.edu with Sendmail; Thu, 16 Oct 86 23:36:38 pdt
+Date: Thu, 16 Oct 86 23:36:38 pdt
+From: normac!tim@russell.stanford.edu
+To: croft@russell.stanford.edu
+Subject: stack packets explained
+Actual-Sender: Tim McCreery
+
+Bill-
+Sorry it took me so long to send you this. I looked around but either
+I can't find what I had done previously or else I deleted it: probably
+the latter in a space-saving move.
+
+Here is a typical continuously dumping stack packet:
+
+[B ] S: 220 D: 255 T: 679        dT: 679        (0001)  L: 64
+     FF DC 4B 00 3D 44 73 74 6B 00 00 05 1A 00 06 ED       ..K.=Dstk.......
+     A0 20 00 00 00 03 08 00 06 EB AA 4E B9 00 00 04       . .........N....
+     F2 4E B9 00 00 04 F2 4E B9 00 00 04 F2 4E B9 00       .N.....N.....N..
+     00 04 F2 4E B9 00 00 04 F2 4E B9 00 00 04 F2 4E       ...N.....N.....N
+
+Here are the details:
+
+FF   DC   4B | 00   3D | 44 | 73   74   6B | 00   00   05   1A | 00   06   ED
+<--- 01 ----> <- 02 --> <03> <---- 04 ----> <------ 05 -------> <------ 06 --
+
+A0 | 20   00 | 00   00   03   08 | 00   06   EB   AA | 4E   B9 | 00   00   04
+--> <- 07 --> <------ 08 -------> <------ 09 -------> <- 10 --> <------ 11 --
+
+F2 | 4E   B9 | 00   00   04   F2 | 4E   B9 | 00   00   04   F2 | 4E   B9 | 00
+--> <- 10 --> <------ 11 -------> <- 10 --> <------ 11 -------> <- 10 --> <--
+
+00   04   F2 | 4E   B9 | 00   00   04   F2 | 4E   B9 | 00   00   04   F2 | 4E
+- 11 -------> <- 10 --> <------ 11 -------> <- 10 --> <------ 11 -------> etc.
+
+01 - lap header: 0x4B = 'K' is Kinetics lap type.
+02 - data count (plus DDP hop count if this was a long DDP).
+03 - type of Kinetics lap packet: 0x44 = 'D' is the diagnostic type.
+04 - ASCII "stk" for stack packet.
+****
+All addresses that refer to PROM locations or RAM locations
+used by the PROM are dependent on the revision level of the PROM.
+The following addresses are based on the PROM known by the
+checksum 7E8B which should be all units now shipped and should
+include all units in the field which have been upgraded.
+****
+05 - 0x51A is first true stack address: from the PROM, this is
+     the return address after the call to the stack packet routine.
+     The call is from the routine "nultrap" which is the default
+     exception handler used for every type of exception/interrupt
+     except specifically the AppleTalk/8530 and the Ethernet chip
+     and whatever else might be specifically replaced.
+06 - From the PROM, 0x6EDA0 is a return address in the exception vectors
+     after the "jsr nultrap" which is also used to indicate which
+     exception/interrupt occurred.
+     Here is the magic formula:
+		The vectors start at 0x6EC7A.
+		Each vector is 6 bytes, the length of the "jsr nultrap".
+		0x6EDA0 - 0x6EC7A = 0x126 = 294.
+		(294. - 6) / 6 = 48.
+     Exception vector 48. is the Ethernet interrupt service.
+     I have included a table at the end of this mail which tells all
+     in terms of which vectors are used for what.
+***
+At this point, the remainder of the stack is interpreted
+according to type of exception that occurs. Consult the
+Motorola 68000 manual for details.
+***
+07 - 0x2000 is the processor status at the time of the Ethernet interrupt.
+08 - 0x308 is the interrupted instruction location in the PROM. In this
+     case, it is during warm restart initialization, right after we have
+     lowered priority (and before we have set the real Ethernet ineterrupt
+     routine address into the vector).
+09 - In the PROM's RAM area, 0x6EBAA is the address of a temporary scratch
+     area used for during various PROM routines.
+10 - This turns out to be beyond the bottom of the stack which also happens
+     to be where the vectors begin. This is a "jsr" instruction.
+11 - 0x4F2 is the address of the "nultrap" routine.
+
+     Exception Table for PROM 7E8B
+     =====================================
+
+	6EC8C	|  2: Bus error
+	6EC92	|  3: Address error
+	6EC98	|  4: Illegal instruction
+	6EC9E	|  5: Zero divide
+	6ECA4	|  6: CHK instruction
+	6ECAA	|  7: TRAPV instruction
+	6ECB0	|  8: Privilege violation
+	6ECB6	|  9: Trace
+	6ECBC	| 10: Line 1010 emulator
+	6ECC2	| 11: Line 1111 emulator
+	6ECC8	| 12: Unused
+	6ECCE	| 13: Unused
+	6ECD4	| 14: Unused
+	6ECDA	| 15: Unused
+	6ECE0	| 16: Level 2 dispatcher
+	6ECE6	| 17: Unused
+	6ECEC	| 18: Unused
+	6ECF2	| 19: Unused
+	6ECF8	| 20: Unused
+	6ECFE	| 21: Unused
+	6ED04	| 22: Unused
+	6ED0A	| 23: Unused
+	6ED10	| 24: Spurious Interrupt
+	6ED16	| 25: Level 1 Interrupt Autovector
+	6ED1C	| 26: Level 2 Interrupt Autovector
+	6ED22	| 27: Level 3 Interrupt Autovector
+	6ED28	| 28: Level 4 Interrupt Autovector
+	6ED2E	| 29: Level 5 Interrupt Autovector
+	6ED34	| 30: Level 6 Interrupt Autovector
+	6ED3A	| 31: Level 7 Interrupt Autovector
+	6ED40	| 32: TRAP 00 Instruction Vectors
+	6ED46	| 33: TRAP 01 Instruction Vectors
+	6ED4C	| 34: TRAP 02 Instruction Vectors
+	6ED52	| 35: TRAP 03 Instruction Vectors
+	6ED58	| 36: TRAP 04 Instruction Vectors
+	6ED5E	| 37: TRAP 05 Instruction Vectors
+	6ED64	| 38: TRAP 06 Instruction Vectors
+	6ED6A	| 39: TRAP 07 Instruction Vectors
+	6ED70	| 40: TRAP 08 Instruction Vectors
+	6ED76	| 41: TRAP 09 Instruction Vectors
+	6ED7C	| 42: TRAP 10 Instruction Vectors
+	6ED82	| 43: TRAP 11 Instruction Vectors
+	6ED88	| 44: TRAP 12 Instruction Vectors
+	6ED8E	| 45: TRAP 13 Instruction Vectors
+	6ED94	| 46: TRAP 14 Instruction Vectors
+	6ED9A	| 47: TRAP 15 Instruction Vectors
+	6EDA0	| 48: Ethernet service
+	6EDA6	| 49: Deadman timer service
+	6EDAC	| 50: Timeout service
+	6EDB2	| 51: Applebus service
+	6EDB8	| 52: Q-bus host service
+	6EDBE	| 53: Multibus host service
+	6EDC4	| 54: Unused
+	6EDCA	| 55: Unused
+	6EDD0	| 56: Unused
+	6EDD6	| 57: Unused
+	6EDDC	| 58: Unused
+	6EDE2	| 59: Unused
+	6EDE8	| 60: Unused
+	6EDEE	| 61: Unused
+	6EDF4	| 62: Unused
+	6EDFA	| 63: Unused
+
+

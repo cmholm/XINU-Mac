@@ -1,0 +1,33 @@
+AppleTalk / Ethernet Gateway - IP version (KIP)
+
+(c) 1986, Stanford Univ., CSLI.
+May be used but not sold without permission.
+(c) 1986, Kinetics, Inc.
+May be used but not sold without permission.
+
+checking out current version swan 1/24/86.
+
+Edited, modified and improved by billn 1/27/86.
+
+K_SPL bug fixes by tim 1/30/86.
+
+Ethernet address bug fixed by tim 2/3/86.
+
+Croft/Vax version integrated by tim 2/8/86.
+This modifies kfps.h to define "flexnames"
+
+Add checksum stuff and ability to handle Kinetics LAP types
+from abreceive() by tim 2/15/86.
+
+Add conf.h file information to be in state vector area which
+may be configured via prompt, by tim 2/21/86.
+
+Mods from BBN & Columbia, Tappan and Kim, 8/86.
+
+Stanford revision;  see file 'etc/rev1086'.  croft, 10/15/86.
+
+Incorporated latest ie.c from tim that does IO
+directly from pbufs.  11/8/86.
+
+Revision 0287;  see file etc/rev0287.  croft, 3/87.
+

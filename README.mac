@@ -1,0 +1,91 @@
+
+
+			Macintosh XINU Installation
+
+
+MacXINU is used just as any other Macintosh application; it can be
+double-clicked from the Macintosh Finder or invoked by name from
+the Aztec shell.  XINU runs on 512K Macintoshes with old or new
+ROMs and on Mac Plusses.  It will not run on a 128K Macintosh,
+because it does not have enough memory.  It does not yet run on a
+Macintosh II.
+
+
+Installation
+
+The required configuration for development is any Macintosh with
+a hard disk.  Insert XINU distribution disk #1 and drag the XINU
+folder from disk #1 into the disk window of your hard disk.  Open
+the XINU folder on the hard disk.  Then eject disk #1 and insert
+disk #2.  Drag the folder named "sys" from disk #2 onto the folder
+named "sys" in the XINU folder on the hard disk.  Now the folder
+named "sys" in the XINU folder should contain folders named "sys",
+"h", and "con".  The makefiles and the file /XINU/sys/sys/xinu.r
+expect Aztec C to be in a folder named "C" on the hard disk.  Move
+/XINU/.profile to the folder that contains the Aztec shell.
+
+It will take a long time (about a minute) to display the files in
+the folder /XINU/sys/sys from the Finder, since there are so many
+of them, so it is recommended that you only work in that folder
+from the Aztec shell.
+
+If you want to try XINU without the network now, you can run it.
+Make sure the Chooser desk accessory says that AppleTalk is inactive.
+If you want to use XINU without the network, you can skip to
+"Compiling XINU".  Otherwise, continue with the instructions to
+install the Kinetics gateway.
+
+
+Installing the Kinetics Gateway
+
+Besides the documentation that comes with the gateway, there are
+instructions for installation in the XINU distribution in the file
+{Xinu-directory}/gateway/src/etc/install.  Once you have atalkad
+running on a UNIX host, you can install the gateway using the
+application "Prompt2.0" supplied on the XINU distribution disk:
+
+	attach Ethernet and AppleTalk cables to the FastPath box
+	plug in the FastPath
+	open the "gateway" folder
+	edit file "config" and change the gateway name and IP
+		addresses to fit your system (all numbers in hex)
+	double-click on "Prompt2.0"
+	select "Find All Gateways" from the Gateway menu
+	click "OK" in the dialog box
+	click the "Reset" button
+	click "OK" in the dialog box
+	select "Find All Gateways" from the Gateway menu
+	click "OK" in the dialog box
+	select "Open Config File" from the File menu
+	open the file "config"
+	change the Ethernet hardware address to FXXXXX,
+		where XXXXX is the serial number of your FastPath
+	click the "Send Config" button
+	click "OK" in the dialog box
+	click the "Send Load" button
+	click the "Go" button
+	click "OK" in the dialog box
+
+Now you can check to see if the gateway is functioning by pinging
+it from another computer, or by running XINU.
+
+
+Compiling XINU
+
+Edit /XINU/sys/sys/Configuration and change the SERVER constants
+to indicate the IP addresses at your site.  Change directory to
+/XINU/sys/sys and run make.  Completely recompiling the system
+takes about an hour and a half, and the result should be a file in
+/XINU/sys/sys called MacXINU.  You can run XINU from the shell by
+typing "macxinu".  If you add a new file or change the include
+statements in a C file in any of the directories /XINU/sys/sys,
+/XINU/sys/sys/net, /XINU/sys/sys/dev or /XINU/sys/sys/shell, you
+should run "make depend" in that directory to insure that modifying
+header files will cause recompilation of the source files that
+include them.
+
+
+Suggestions
+
+If you come up with a way to compile XINU on floppy disks alone,
+please let us know.

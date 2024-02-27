@@ -1,0 +1,48 @@
+Below is a list of (mostly minor) bugs fixed in the 0287 release.
+
+kip/gw.c/iematch(), abmatch();		unsigned compares failing
+	The range checks for ARP matching on the IP dynamic addresses
+	are failing sometimes due to unsigned compare wraparound.
+	New code rewrites these functions to avoid unsigned compares.
+	Since Stanford has a class A address, we didnt uncover this
+	until class B and C sites started using the code.
+	[reported by mckay@ee.ecn.purdue.edu, hemphill@nrl-aic, etc.]
+
+kip/gw.c,gw2.c/;		hop counts in ddp header
+	The DDP hop count is now incremented and masked off properly
+	when looking at the ddp.length field.
+	[reported by kre (Robert Elz)]
+
+kip/rtmp.c/artinput();		allow arbitrary format broadcast addresses
+	The old code made assumptions about the route table entry for
+	the directly attached ether cable.  The new code allows this to
+	be set instead from the atalkad.
+	[reported by mckay@ee.ecn.purdue.edu, dk1z#@andrew.cmu.edu, etc.]
+
+kip/gw.c/routeddp();		route failure with interbridge
+	An extraneous routing loopback check was discarding appletalk
+	packets with src&dst on the same cable.  Check removed.
+	[reported by gcc-milo!brad]
+
+kip/etc/atalkad.c;		4.3 BSD function name conflict
+	Rename the atalkad.c function getshort() to be getashort().
+	4.3 domain name server library already has a function
+	called getshort().
+
+kip/etc/atalkad.c;		zero zone name field
+	Since zone name field length may change upon a reread of 
+	atalkatab, that field should be zeroed in the structure passed
+	to the kboxes.
+	[reported by gcc-milo!brad]
+
+kip/etc/atalkad.c;		(month/date) in atalkalog
+	January is being reported as month number zero(!)
+
+cap/samples/papif.c		assumes special lpd
+	Papif assumes that lpd has been modified to pass the printer
+	name to the filter with the '-p' switch.  To avoid this dependency
+	a trivial shell file can be setup that execs in papif with the
+	proper -p switch along with the previous arguments.
+
+kip/etc/broadcast
+	New documentation that better explains IP broadcasting issues.

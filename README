@@ -1,0 +1,152 @@
+			   X I N U
+			   -------
+
+   Xinu is a layered, process-based operating system.  A detailed
+description can be found in the text:
+
+	Comer, Douglas E., Operating System Design: The Xinu
+	  Approach, Prentice-Hall, 1984.
+
+This directory contains version 7 of the VAX software required to
+support Macintosh XINU, part of which is described in chapter 13 of:
+
+	Comer, Douglas E., Operating System Design Vol 2:
+	  Internetworking with Xinu, Prentice-Hall, 1987.
+
+To get the Macintosh XINU version 7 system software (from the second
+volume) on two Macintosh diskettes, contact:
+
+	Xinu librarian
+	Computer Science Dept.
+	Purdue University
+	West Lafayette, IN 47907
+
+	(317) 494-9160
+
+	Current Librarian: Charlotte Tubis
+
+   To run the software on this tape, you will need a Digital Equipment
+Corp. VAX or Microvax computer running the Berkeley 4.3 UNIX operating
+system, the Stanford University Macintosh C compiler (SUMacC), and a
+Kinetics FastPath AppleTalk/Ethernet gateway.  The VAX is used to cross-
+compile, cross-assemble, and cross-load C programs to the gateway and to
+run the XINU file server.
+   The tape can be read into any directory.  These programs do not need
+to be placed in system directories unless you want to do so.
+
+Installation
+------------
+
+   Choose a directory for the Xinu software.  You need not be in this
+directory to cross-compile or download programs -- it's merely the place
+to store the Xinu software.  Moving the software to another directory
+requires recompilation (i.e., reinstallation).  Choosing /usr/Xinu as
+the directory will save time during installation because binary files on
+the tape are compiled for that directory.  Alternatively, you can choose
+to place the software in an arbitrary directory and make a symbolic link
+from /usr/Xinu to that directory.  Throughout this  documentation the
+directory into which you place Xinu is denoted {Xinu-directory}.
+
+   Make the Xinu directory and read in the tape by typing the following
+commands:
+
+	mkdir {Xinu-directory}
+	cd {Xinu-directory}
+	tar xbf 20 /dev/rmt0	(your 1600 bpi tape device may
+				 be named something other than
+				 /dev/rmt0)
+
+   Make a symbolic link from /usr/Xinu to the directory you chose to
+avoid recompilation.  You will need super user privilege to do so. This
+step is optional:
+
+	su
+	...supply super user password when asked...
+	ln -s {Xinu-directory} /usr/Xinu
+	CONTROL-d (to leave super user mode)
+
+Once the tape has been read, you must change all source programs that
+refer to {Xinu-directory} and recompile the binaries.  A shell script
+has been provided to do this for you.  To use it, move to the installation
+directory and run Install.  *NOTE: YOU MUST BE IN THE INSTALLATION DIRECTORY
+{Xinu-directory}/install WHEN YOU EXECUTE THIS SCRIPT OR IT WILL NOT WORK*
+
+	cd {Xinu-directory}/install
+	./Install
+
+Compilation of Cross-Development Software
+----------- -- ----------------- --------
+
+   To complete installation you must recompile source programs that contain
+references to the Xinu directory.  For details, see file README in the installation directory:
+
+	cd {Xinu-directory}/install
+	cat README
+
+Network Servers
+------- -------
+
+   Now that installation is complete, you need to Configure the Xinu
+kernel software itself, and recompile it.  To do so, you must choose
+internet addresses for the domain name server, time server, and remote
+file server machines.  You can start the remote file server yourself
+on the VAX.  It is found in {Xinu-directory}/bin/fs.  You need to know
+the internet address of the VAX where fs runs, as well as the internet
+address of the machine that runs a time server (UDP port 37) and the
+internet address of a machine that runs a domain name server (UDP port
+53).  Ask your local network guru to tell you these internet addresses
+(in dotted decimal notation) and modify the SERVER constants found on
+the Macintosh near the end of file /XINU/sys/sys/Configuration.  If you do
+not have an assigned Internet address for your network (i.e., your network
+does not connect to the DARPA Internet), choose a network address for it.
+Using 128.10.2.0 (which is actually the address of an Ethernet at Purdue),
+means you won't have to recompile the kernel.
+
+Remote File Server
+------ ---- ------
+
+   The remote file server answers queries from the network and reads/writes
+files as directed.  If you run the file server on your VAX, then the file
+server has the permissions of the user who starts it.  We recommend that you
+install a new user account (e.g., "xinu"), and always execute the file server
+as that user.  Also, you should understand that the file server makes all
+world-readable files accessible over the network.  If you connect to the
+DARPA Internet, it makes world-readable files accessible from foreign sites.
+   The file server comes configured to use UDP port 2001.  Check with
+your local network guru to make sure 2001 is not in use, and if it is,
+choose a new port number for the file server.  Change the default port
+in the software in {Xinu-directory}/fs or just use the -p option when
+invoking fs.  You must also change the port number that the kernel uses
+- it can be found on the Macintosh in file /XINU/sys/sys/Configuration.
+   Start the file server:
+
+	...login to the VAX under the account that owns the file server...
+	{Xinu-directory}/bin/fs
+	logout
+
+Try Running Xinu
+--- ------- ----
+
+   Now that you have a network running RARP, time, and name servers,
+you can boot xinu.  Turn on the Macintosh, double-click on the SHELL,
+and, in directory /XINU/sys/sys, type "macxinu".
+   To recompile xinu, run make in /XINU/sys/sys.  Recompiling the whole
+system from scratch, which will be necessary the first time, takes about
+an hour.
+
+Problems or Questions
+-------- -- ---------
+
+Reports of errors in the software or documentation are gratefully accepted.
+Please mail all comments and bug reports to:
+
+	DARPA Internet/ CSNet address:
+		comer @ cs.purdue.edu
+	uucp address:
+		{allegra, ihnp4} ! purdue ! comer
+	Postal address:
+		Computer Science Department
+		Purdue University
+		West Lafayette, IN  47907
+		(317) 494-6009
+     

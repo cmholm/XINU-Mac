@@ -1,0 +1,90 @@
+TODO list for next release.
+
+Merge Charlie's and Kinetics ie.c to get the best version.
+
+Need makefile.68, Kinetics should test on their IS box.
+
+Use technique outlined by Kinetics to reallocate approximately
+4 more pbufs from area currently wasted in RAM.
+
+Include some type of date or version stamping mechanism so we can
+tell what version various kboxes currently have.  Ddt could
+also do some checking to ensure the symbol table corresponds
+to the code in the kbox.
+
+Implement configuration flag discussed in last section of 
+GATEWAY CONFIGURATION section of ip.at document.
+
+Invent another class of route table entry that looks at the upper
+byte only of the appletalk net number.  Then we could have for example
+one route table entry in the Stanford table that points to all
+nets associated with CMU.  Obviously this requires coordination in the
+assignment of the upper byte values:  an appletalk number czar.
+When NBP BrRq's are sent to such an 'area route', they 'break open'
+at the destination end to hit all appropriate zones.
+
+Finish zones.
+
+As a stopgap measure until real zones (and zone security?) exists,
+allow one administrator host to administer several zones.  Modify
+atalkad.c to check zone of incoming ROUTEI request.  In reply, only
+return those nets that have the same zone string.
+
+With the current one packet arouteTuple scheme, only 64 anets can
+be accommodated.  Do we need or want to expand to handle more?
+Would require multi packet arouteTuples.
+
+Have a config value that is used for testing:  the value would be
+the percentage of packets that are simply discarded upon reception(!)
+This would allow an easy way to verify error and flow control schemes
+in the end to end host implementations.
+
+Add some code to nbpback() that prohibits more than 3 lookups of the
+same address within a 30 second period.  This is to prevent 
+unkind Mac applications from sending infinite numbers of NBP requests
+(each causing many broadcasts) at one second intervals.
+
+Similarly, CAP and KHOST libraries should prevent infinite or
+unreasonable use of NBP requests.
+
+Since it makes no sense to use the dummy 3 byte LAP header (it is
+just there for byte alignment anyway), use those 3 bytes as a
+'sanity check' of valid appletalk-on-IP packets.  In the gateway
+it currently stuffs lapdst=0xFA, lapsrc=0xCE, laptype=2 in these
+cells.  The CAP/KHOST libraries should also set and check for
+these values and discard any appletalk packets which dont
+contain them.
+
+Make (minor) mods to KHOST libraries so that they can speak to
+a KIP kbox.  This would allow Centram (TOPS) and other companies to relink
+their packages and offer a KIP version.
+
+Since we are down to about 18 pbufs now, watch stats to be sure
+this is enough.  Get doc from Kinetics on how to add another
+RAM chip to the kbox;  (unfortunately adding more RAM precludes
+adding a BOOTP PROM, since they both use the same socket(!?))
+
+Modify NBP ARP as per Mark Sherman's suggestion to allow option
+of using a plain Mac NBP impleentation as a gateway.  (You can already
+use a plain Mac as an IPGATEWAY request server).
+
+Config switch to prohibit sending off-campus IP's.  This could be
+turned on in kboxes in dorm situations to prevent internet
+'crackers' from causing havoc.
+
+Clarify use of IP broadcasts by MacIP programs.
+
+MacIP address assignment service works fine for medium and small scale
+installations, but probably not for large sites such as dorms where you
+would want thousands of potential users.  For this case I suggest the
+following:  have one or more small UNIX boxes (on ethernet) near the
+dorm environment, plus the Kinetics box(es).  Then write a simple
+appletalk ATP or ASP driver for the Mac that 'fakes' serial driver
+calls.  This (appletalk) serial driver can be used with any of the
+popular terminal emulators such as Versaterm or MacTerminal.  Then write
+a corresponding CAP or KTALK based daemon for the local UNIX boxes.
+Students that wish to connect to a general campus (ethernet only) host
+will first log into the local UNIX box, then telnet to the ethernet
+only host.  If UNIX boxes are too expensive for this, convince Apple or
+Kinetics to make a standalone box (no disk needed) that performs this
+multiplexing function.

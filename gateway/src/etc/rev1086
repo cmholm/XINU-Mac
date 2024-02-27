@@ -1,0 +1,263 @@
+10/86 REVISION OF IP-ETHER/APPLETALK GATEWAY CODE
+
+The October 1986 Stanford revision of the IP-ether/appletalk gateway
+code (KIP) is used with the Kinetics KFPS.  It contains the following
+new features over the previous, 'KUDP' / seagate release.  Some of
+these items will be discussed in more detail below.
+
+	Improved IP address management.
+
+	Centralized configuration/booting control.
+
+	Full routing using NBP/RTMP/ZIP;  'core' gateway scheme.
+
+	Gateway debugging via symbolic net ddt.
+
+	Simple integration with libraries such as CAP/KHOST.
+
+	Improved packet throughput.
+
+
+IP ADDRESSING
+
+IP nets/subnets are no longer tied directly to appletalk net numbers.
+If your Mac applications are only using appletalk protocols (not
+MacIP), then only one IP address needs to be assigned, that of the
+gateway itself.
+
+If Mac applications use IP protocols, then each Mac must be assigned a
+unique IP address.  In the past this was done by assigning an IP net or
+IP subnet number to the appletalk cable, then placing a 'customization
+file' on each Mac containing its unique IP address.  There are a number
+of administrative reasons this is not a good approach:  (1) the custom
+file must be carefully configured and not accidently copied or moved to
+another machine/cable.  (2) IP net/subnet numbers are valuable
+resources in certain campuses and companies;  assigning one per
+appletalk cable can be wasteful.  (3) the old IP address 'ARP' (address
+resolution protocol) scheme does not work through 'standard' appletalk
+bridges such as the Hayes.
+
+For these reasons, the gateway code now manages appletalk IP
+addresses in a new fashion.  This is described in detail in the file
+'ip.at' in this directory.  Briefly, the gateway can be configured so
+that it takes over responsibility for a 'range' of IP addresses on the
+ethernet side of the gateway.  These addresses can be dynamically or
+staticly bound to MacIP clients on the appletalk side.  Typically a
+MacIP client program will ask the gateway for an IP address assignment
+each time the client program (such as Telnet or FTP) executes.  The
+gateway remembers these assignments (even after the client exits) and
+thus the mapping used between IP address and appletalk address remains
+relatively fixed.  Appletalk NBP (name binding protocol) is used to
+provide the ARP function.
+
+
+GATEWAY CONFIGURATION / BOOTING CONTROL
+
+Rather than each gateway physical site having to edit and maintain a
+detailed download configuration file, this function is now controlled
+by an 'appletalk administrator' host / daemon.
+
+Each gateway is only configured with a few basic items at download
+time, such as the IP/ether address of itself and the IP addresses
+of the admin host, and the nearest 'real' gateway.  This information
+is placed in a special 'read only' section of the gateway RAM along
+with the TEXT and DATA of the gateway program.
+
+When the gateway is powered up or restarts, it asks the admin host for
+the rest of its configuration, and for the initial routing table
+showing the next hop IP address for all appletalk net numbers.
+After this time the admin host is no longer needed and the gateways
+keep each other informed of dynamic additions to the appletalk topology
+(such as a Hayes bridge), as they are plugged in.
+
+The appletalk admin daemon, /etc/atalkad, runs on the admin host and
+usually just answers requests from booting gateways (a rare
+occurance).  However the daemon can also be signaled to propagate new
+routing or config info out to all the gateways.  This simplifies
+administration.  Another file in this directory, 'install' describes
+the daemon and how to setup its database file, /etc/atalkatab.  A
+sample atalkatab is also provided with extensive comments.
+
+
+ROUTING PROTOCOLS
+
+This is an outline description of how appletalk routing works in the
+new gateway code.  At boot time the initial routing table is obtained
+from the admin host.   This downloaded table is an array of structures
+with the following fields:
+
+	appletalk net number (anet)
+	flags
+	IP net or host address
+	zone name
+
+The flags show what kind of appletalk net this IP address represents,
+either a kbox acting as a gateway to the anet, or an IP net/subnet
+representing the anet (typically an ethernet segment).  For the latter
+case, other flags show what format of directed broadcast address is
+used to reach all hosts on that ether segment.  Provision is also
+made for IP nets that dont offer directed broadcast (discouraged).
+Yet another flag shows which gateways are marked as 'core' gateways,
+that are used to centralize dynamic updates, discussed below.
+
+In the routing table inside the gateway, further fields and flags are
+available to describe other aspects of the anet entry.  For example,
+the 'hop count' field is used in the appletalk routing update
+algorithms.  For use in the discussion below, we characterize the type
+of route entry with the following keywords.
+
+	hop0 - there are only two routes in the table with hop count
+	    equal to 0, these are the directly connected cables to
+	    the ethernet and appletalk.
+	local - this kind of route points to an appletalk node number
+	    of a bridge accessible on the directly connected appletalk.
+	IP - this route points to another kbox or to an IP net.
+	AA - this route was downloaded from the appletalk administrator
+	    in the initial route table.  AA routes are a subset of
+	    IP routes;  IP routes can include nets discovered
+	    dynamically.
+
+Within the gateway code, the following subroutine functions are invoked
+as described upon timer expiration or packet input:
+
+	RTMPTIMER runs every 10 seconds and broadcasts an RTMP packet
+	to the directly connected appletalk cable.  (10 seconds seems
+	short but this is the Apple standard).  This causes the campus
+	route situation to propagate out thru any bridges on the
+	appletalk cable.
+
+	RTMPTIMER (every 20 seconds) ages the route table.  AA and hop0
+	routes are excluded from aging.  Routes are deleted if they are
+	age >= 40 seconds (local routes) or >= 5 minutes (IP routes).
+
+	RTMPINPUT is called when an RTMP packet is received from the
+	appletalk segment (from other bridges).  It updates and adds
+	local routes;  doesnt touch hop0 or IP routes.
+
+	ARTTIMER.  'art' stands for 'arouteTuple'.  This is an extended
+	form of routing packet sent between gateways.  It contains
+	information similar to the RTMP packets, but also contains IP
+	address information.  ARTTIMER runs every 60 seconds.  If the
+	gateway hasnt yet obtained its initial routing table, it asks
+	the admin host to send one.  Otherwise ARTTIMER sends any local
+	additions in its table to ONE of the core gateways (but never
+	itself).  The core is chosen by circularly scanning the table
+	for an entry so flagged.  In other words if there are two
+	core's marked, the updates will be sent alternately to them.
+
+	ARTINPUT is called when an arouteTuple arrives.  It could have
+	been sent by the admin host (opcode ROUTEI, 'initial'), by the
+	arttimer above (ROUTEQ, 'query') or as a response to a ROUTEQ,
+	(opcode ROUTE).  If it was a ROUTEI, all previous AA routes are
+	purged before merging additions.  Hop0 and local routes are
+	never affected;  after merging additions/changes the gateway
+	checks the op code again.  If it was ROUTE, we're done.  If it
+	was ROUTEQ (query), we respond with another arouteTuple
+	containing all of our own non-AA routes.  If it was ROUTEI we
+	simply send an acknowledgement so that the admin host knows we
+	got it ok.
+
+Now that we have a valid route table, processing NBP BrRq's (bridge
+requests) is simple:  the gateway just goes down the table, sending a
+LkUp directed broadcast request to each net.  The gateway throttles
+itself so that it doesnt fill all the output queues or deny incoming
+packets while performing this broadcast propagation.
+
+As a form of misconfiguration and security protection, the artinput
+function in the gateway only accepts routing packets from other
+'trusted' gateways:  i.e. from the admin host or one of the kboxes
+configured initially in the database.
+
+The current ZIP (zone information protocol) code is a 'stub
+implementation'.  A zone name string is provided in the per-gateway
+configuration.  Any ZIP-query's are simply answered with this
+global zone name.  With this initial release we expect most sites will
+be satisified to run as one zone.  To adminstratively separate your net
+into multiple zones, you could have a different appletalk administrator
+host per department or group of departments.
+
+Most of the hooks for real zones are already in the gateway.  We just
+need to add another admin host packet type to propagate the zone name
+information out to the kboxes.  We would avoid implementing the
+somewhat complicated ZIP-takedown and ZIP-bringup scheme of changing
+zone names, because it is much easier to utilize the existing global
+table update procedure that is part of the admin host daemon.
+
+
+SYMBOLIC DDT DEBUGGER
+
+To aid in debugging the running gateway, some code was added to an
+existing ddt program to allow network access to the address space in
+the gateway.  The ddt, object file, and symbol table reside on UNIX and
+simple deposit/examine packets are sent to the gateway.  A 'debug host'
+is setup as part of the gateway configuration and only requests from
+this host (and in the privileged socket range, superusers only) are
+allowed.  To invoke ddt call it as "ddt gw.sym IP_name_or_address".
+
+We have found it useful for monitoring/changing tables, statistics
+counters and such.  There is also a (kludge) way of printing gateway
+generated packets (if an etherwatcher isnt on your desk):  just setup
+to send the IP packet to an 'undefined' IP address;  since these stay
+in the ARP cache for a few minutes, you have time to find the packet in
+the cache and print it out.
+
+Since the KFPS checksum/powercycle restart code also depends on the
+TEXT/DATA portion of RAM staying intact, a new operation was added to
+ddt to do a memory compare between the running gateway and the object
+file on UNIX.  Another operation allows toggling between the display of
+the gateway address space and the object file.
+
+
+LIBRARY INTEGRATION
+
+Talking to the new gateway code is simple for UNIX libraries such
+as CAP (or KHOST).  A configuration file exists per host showing the
+appletalk addresses of the host itself, and its closest appletalk
+gateway (which may not be on the same ether cable).  We have modified
+CAP to look in the file /etc/atalk.local, an example of which is shown
+here:
+
+	# mynet mynode myzone 
+	123 9 TWILIGHT
+	# bridgenet bridgenode bridgeIP
+	123 240 36.9.0.240
+
+Routing for the host is straightforward:  the host keeps variables
+source_anet, source_anode, and source_IPaddress which are reset by each
+incoming appletalk packet.  Now when the host wants to send, if the
+appletalk address the host is sending to matches source_anet /
+source_anode, the host can send the appletalk packet directly to
+source_IPaddress.  This will be the address of a kbox or another ether
+host.  If there is no match, the host simply sends to the 'bridgeIP'
+address found in /etc/atalk.local.  The gateway will do the proper
+appletalk forwarding.  Eventually as a connection becomes established,
+the host will naturally have cached the addresses of the peer at the
+other end and thus the appletalk packet can be routed directly.
+
+Similarly, NBPLookup's from the UNIX host are sent to the nearest
+gateway for directed broadcast propagation to all appletalk nets
+(including the host's own).
+
+It would be great if the UNIX host could somehow determine its nearest
+bridge and appletalk addresses dynamically by sending or listening for
+special packets from the gateways.  But we havent figured out how to do
+this for the general case when the gateway may be several hops away,
+behind non-appletalk speaking gateways.  If you have some ideas, please
+post them to info-applebus.
+
+
+IMPROVED THROUGHPUT AND ORGANIZATION
+
+The new code has an improved organization that does less buffer copying
+and handles / routes packets more consistently.  Kinetics and Columbia
+have contributed mods to the ethernet device driver code that perform
+DMA directly to and from the buffer pool.  (The original seagate driver
+had to contend with separate buffer memory on the Interlan NI3210
+interface card).
+
+We've made some steps toward reducing the Kinetics dependencies for the
+dozen or so 'original' seagate builders out there, but this will not
+be completed until next release.  (I'm surprised people are still using
+that prototype hardware.)
+
+	--Bill Croft, Stanford University, CSLI.

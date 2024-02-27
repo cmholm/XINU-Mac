@@ -1,0 +1,83 @@
+# Appletalk administration database table (atalkatab),
+# read by appletalk admin daemon (atalkad).
+#
+# When each kbox boots it asks atalkad for:  (1) its site specific 
+# configuration information.  (2) the location of other kboxes
+# and appletalk nets in this 'campus'.   This file is read when atalkad
+# starts, and also if atalkatab is rewritten in place (write date
+# changes.) 
+#
+# Atalkad normally just answers 'requests' for data from the kboxes,
+# but if called with arguments ("atalkad route" or "atalkad boot"),
+# atalkad will force new routing or config information to each kbox
+# configured in this table.
+#
+# If a line in this file begins in column 1 (no leading tabs or spaces), it 
+# describes an appletalk net ("anet") and its location, in this format:
+#
+# appletalk_net_number	flags	IP_address_or_name	zone_name
+#
+# The anet can be a simple number, or in 'dot notation', e.g. '12.34'
+# which would place 12 in the high byte and 34 in the low byte of the
+# 16 bit anet number.
+#
+# The flags field is a string of single letters denoting the type 
+# of appletalk net:
+#
+#	K	Anet is the atalk port on a kbox, located at IP_address.
+#	C	This kbox is also a 'core gateway'.  One or two
+#		of the kboxes in a campus situation will be setup as cores
+#		to minimize the packets required for route table updates.
+#	N	Anet is equivalent to an IP net (usually ether) supporting
+#		directed broadcast.
+#	0,1,2,3	For flag N, this number selects the format of the broadcast
+#		address used:  either 0, 1, 2, or 3 0xFF (255) suffix
+#		bytes on the IP_address.
+#	H	Anet is an IP net, but it doesnt support directed broadcasts,
+#		so IP_address is the address of a host on that net (can be
+#		a kbox) running a 'rebroadcast' server.
+#
+# If a line in this file begins with spaces or tabs, then it contains
+# 'configuration information' for the kbox described on the previous line.
+# There may be as many of these lines as are required to describe the
+# config.  Each line can contain one or more fields, the fields represent
+# numbers or strings that are loaded into the gateway at boot time.
+# The first character of each field denotes the type of information:
+#
+#	I	A four byte IP address or name
+#	L	A four byte 'long' numeric value.  Assumed decimal but
+#		can be prefixed by an X or H to denote hex.
+#	S	A two byte 'short' (can also be in dot notation).
+#	C	A one byte 'char'.
+#	"..."	An ascii string.
+#
+# The fields are packed into the config structure as presented, the 
+# daemon does no type or validity checking other than that mentioned above.
+#
+55.13	N1	128.222.13.0	TWILIGHT	#ms ob
+55.44	N1	128.222.44.0	TWILIGHT	#sumex
+55.47	N1	128.222.47.0	TWILIGHT	#welch
+
+55.9	N1	128.222.9.0	TWILIGHT	#csli
+56.1	KC	128.222.9.240	TWILIGHT	#ventura hall
+	I128.222.9.255	I128.222.25.33		#ipbroad ipname
+	I128.222.9.5	L0			#ipdebug ipfile
+	L0 L0 L0 L0	S0 S0			#ipother unused unused
+	LX0		S2	S6		#flags ipstatic ipdynamic
+	S56.1	S55.9	"TWILIGHT"		#atneta atnete zonea
+
+55.28	N1	128.222.28.0	TWILIGHT	#quadnet
+56.2	K	128.222.28.200	TWILIGHT	#linguistics dept
+	I128.222.28.255	I128.222.25.33		#ipbroad ipname
+	I128.222.9.5	L0			#ipdebug ipfile
+	L0 L0 L0 L0	S0 S0			#ipother unused unused
+	LX0		S0	S10		#flags ipstatic ipdynamic
+	S56.2	S55.28	"TWILIGHT"		#atneta atnete zonea
+
+55.35	N1	135.222.35.0	TWILIGHT	#engineering
+56.3	K	135.222.35.200	TWILIGHT	#EE
+	I135.222.35.255	I135.222.25.33		#ipbroad ipname
+	I135.222.9.5	L0			#ipdebug ipfile
+	L0 L0 L0 L0	S0 S0			#ipother unused unused
+	LX0		S0	S10		#flags ipstatic ipdynamic
+	S56.3	S55.35	"TWILIGHT"		#atneta atnete zonea

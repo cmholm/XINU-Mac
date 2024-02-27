@@ -1,0 +1,242 @@
+IP ADDRESS MANAGEMENT ON APPLETALK			(rev. 12/3/86)
+
+
+TRADITIONAL IP ADDRESSING
+
+The original scheme of having a local 'Configuration File' on each Mac
+containing the local and gateway IP addresses has several disadvantages:
+
+	- Each user must have a proper configuration file on his disk;
+	  this creates administration problems.
+	- The IP address space is scarce, dedicating IP nets or subnets
+	  to each AppleTalk cable is wasteful.
+	- Routing issues are also involved:  if unique IP net/subnet
+	  numbers are used for the AppleTalk cables, then routers
+	  throughout the IP internet system must know the routes to 
+	  those numbers.  
+	- The IP client user generally doesnt care or wish to know
+	  what his local IP address is.
+	- ARP on DDP as originally implemented does not work over
+	  multiple bridged (non kbox) networks.
+	- IP users are more interested in locating NAMED IP entities.
+
+
+REVISED IP ADDRESSING SCHEME
+
+A new technique for IP address management utilizes the preexisting
+AppleTalk protocols NBP (name binding) and ATP (transaction) to provide
+these related services:
+
+	(1) Address Assignment:  upon startup most client hosts dynamically
+	    obtain their IP address assignment via a transaction with
+	    an 'assignment server'.  This still allows for certain
+	    hosts to have fixed address assignment via the traditional 
+	    configuration file method.
+
+	(2) Address Resolution:  NBP is used to perform the ARP
+	    protocol that maps IP addresses into AppleTalk 'hardware'
+	    addresses.
+
+	(3) Other services:  the 'assignment' server is also extensible
+	    in that future services may also be provided.  For example
+	    a domain name lookup service could be provided so that
+	    the Mac does not have to be concerned with the details or
+	    locations of such services.
+
+The assignment / lookup services are typically implemented within an
+AppleTalk/Ethernet gateway (Kinetics KFPS ('kbox') or Seagate).  These
+services could also be located on an 'open architecture' Mac or UNIX
+box with both AppleTalk and Ethernet interfaces.  We refer below to the
+location of this service as simply the 'gateway'.
+
+The address resolution service exists in each client as a name binding
+in its local Name Table.  IP addresses are represented within NBP
+requests in the ascii 'dot notation', i.e., four bytes of address
+represented by four decimal strings, separated by dots.  For example:
+'36.44.0.99'.
+
+
+IPGATEWAY SERVICE(S)
+
+All IP address related services (EXCEPT for the address resolution
+protocol, ARP) are located at the gateway as NBP service type 'IPGATEWAY'.
+To use one of the services, the client first does an NBP Lookup for
+name='=', type='IPGATEWAY', zone='*' (this means, ANY instance name, MY
+zone, service type IPGATEWAY).  After receiving the NBP reply the client
+should remember the AppleTalk address returned.  Subsequent requests are
+then sent to this address using the AppleTalk Transaction Protocol (ATP).
+In both the NBP and ATP requests the client program should set the 
+retransmit timer to no less than 5 seconds and retry counter to
+around 4 trys.
+
+The request sent with ATP to the gateway is a structure of the following
+form:
+
+	struct IPGP {
+		long	opcode;		/* opcode */
+					/* return values: */
+		long	ipaddress;	/* my IP address (or lookup reply)*/
+		long	ipname;		/* address of my name server */
+		long	ipbroad;	/* my broadcast address */
+		long	ipfile;		/* my file server */
+		long	ipother[4];	/* other addresses/flags */
+		char	string[128];	/* null terminated string */
+	};
+	/* opcode is one of */
+	#define	ipgpAssign	1	/* assign me an address */
+	#define	ipgpName	2	/* name lookup */
+	#define ipgpServer	3	/* just return my server addresses */
+	#define	ipgpError	-1	/* error return, string = message */
+
+To make a request of an IPGATEWAY service, the client fills in the
+appropriate request opcode and any parameters needed;  it then sends
+the packet with ATP.  When the ATP reply is received, opcode will be
+positive if the request completed ok, otherwise negative.  If an error
+occured a user readable string will be available in 'string';
+otherwise the requested information is located in the ip* fields and/or
+string.
+
+
+ADDRESS ASSIGNMENT SERVICE
+
+Most client machines will go through an address assignment phase as
+they begin running a given IP package or program.  In the case of the
+current MacIP implementation, each invocation of 'telnet', 'ftp', etc.
+will perform this assignment phase at startup time.  However future
+MacIP implementations may only perform address assignment once when the
+IP/TCP layer is loaded onto the system heap/BufPtr;  subsequent IP
+applications then utilize the state obtained by this base protocol
+layer.
+
+Clients (typically service hosts) which already have obtained their
+IP address assignment from a local configuration file, will bypass
+this assignment phase entirely.  However such a client still must
+register its chosen IP address with NBP as described in the ADDRESS
+RESOLUTION section below.
+
+To implement the assignment service the gateway contains a table
+(configured at boot time) designating a 'range' of IP addresses (on the
+ethernet side) which are available for assignment to clients.  Each
+table entry record/structure contains these fields:
+
+	IP address;  timer;  flags;  AppleTalk address;
+
+When the client startup code sends an ipgpAssign request to the gateway,
+the gateway searches the IPaddress/AppleTalkaddress table described
+above.  The service trys to 'reassign' the same IP address to the same
+AppleTalk address if possible.  Otherwise any free slot is used.  If a
+slot is obtained the reply is sent with 'ipaddress' containing the
+assigned address and the timer field of that table entry will be
+started.
+
+Thereafter, every 60 seconds an 'echo command' (NBP confirm) is 
+sent to the client and the timer bumped.  Echo replies received will
+restart the timer.  If 5 minutes pass with no replies received, that
+table entry will be available for potential reassignment.  In making
+'new' table assignments the timer field is used to locate the oldest
+unused table entry.  This increases the chances of a given client to
+keep reusing his IP address assignment if it has recently been active.
+
+
+ADDRESS RESOLUTION
+
+As each client IP package starts up, it enters its own IP address (in
+dot notation) into its local Name Table via a call on NBP Register:
+
+	name: 'WW.XX.YY.ZZ', type: 'IPADDRESS', zone: '*'
+
+No errors should result from the NBP Register call.  (If 'duplicate name'
+resulted it would mean that somehow the IP address assignment service
+was misbehaving.)  This name binding should be removed by the client
+upon exit from the IP package, or of course if the client powers off or
+reboots.
+
+In the client and gateway 'IP output' code, NBP is then used as the
+the address resolution protocol (ARP) to turn an IP address into an
+AppleTalk address.  The usual code in IP output that checks 'is the
+destination IP address on the same IP network as I am' is now disabled.
+ALL IPs are directed via NBP to the appropriate AppleTalk address.
+(Recall that the IP output code caches one or more of these mappings
+so that NBP is only called once per new connection.)  If the client
+is connecting to other clients on AppleTalk, they will answer the NBP.
+If the IP address in question requires gateway routing, then the gateway
+will reply to the NBP as being the appropriate next hop address for this
+packet.
+
+For clients with local disk file configuration tables, the gateway
+actually has TWO ranges of IP addresses that it manages.  The first set
+of addresses are dynamically assigned as we discussed previously.  The
+second set of addresses are statically assigned to clients that are
+locally configured.  In this second case the gateway locates these
+clients as expected using NBP lookups for IPADDRESS types.
+
+
+'SERVER ADDRESS' SERVICE
+
+The 'ipgpAssign' opcode discussed above under 'address assignment
+service' really performs two functions:  (1) it returns the assigned
+client IP address in the 'ipaddress' field and (2) it fills in the
+'ipname', 'ipfile', 'ipother', etc. fields with the addresses of those
+services.  This is because the client usually does not have a
+'configuration file' and the client may need to know several other IP
+addresses to get started.  For example, since the 'ipgpName' opcode is
+currently unimplemented, a client desiring name service should perform
+a lookup itself to the address given in 'ipname'.  The Stanford MacIP
+code uses the simple UDP IEN116 name lookup server;  but the 'ipname'
+host also runs a full domain name server and the MacIP code could be
+changed to use this instead.
+
+Even if the client HAS a configuration file, some of the entries in
+that table may be undefined and so it is useful to have another opcode
+'ipgpServer' that just returns the server addresses without assigning a
+dynamic client IP address.
+
+
+ROBUSTNESS ISSUES
+
+In general the gateways are a good location for the address assignment
+function because they are distributed close to the clients requesting
+service and in particular, kboxes tend to remain up over long periods
+and thru power failures.
+
+However if the address assignment state information is lost in a gateway
+reload, the assignment function is still robust and recoverable.  This
+is because the gateway reloads its dynamic address mapping table at
+startup time.  It does this by asking several times (via NBP) for all
+type=IPADDRESS names.  The replies that are received are entered into
+the address mapping table, just as if they had been rerequested by the
+client.
+
+
+GATEWAY CONFIGURATION
+
+To reduce the amount of information that has to be locally configured
+into each gateway, the gateway performs a 'configure' protocol with the
+'appletalk administrator' host upon startup.  Thus the only
+information that the gateway must know at download time is its own IP
+address and that of the adminstrator.
+
+The configuration information includes the ranges of IP addresses
+mentioned above, the special IP addresses provided in the IPGP packet,
+flags, etc.  One of the flags that may be set will disable the IPGATEWAY
+NBP service, so that a local Mac or UNIX host on appletalk may provide
+the assignment service(s) instead.
+
+The appletalk IP addresses (static and dynamic) and the gateway's own
+IP address, form a contiguous group of IP numbers on the ethernet side
+of the gateway.  For example if the configuration places the gateway at
+36.99.0.20 with 4 static and 6 dynamic addresses, the static addresses
+will be from 36.99.0.21 thru .24;  and the dynamic addresses will go from
+36.99.0.25 thru .30.
+
+In the case when several kboxes are on a single ethernet acting as a
+backbone between appletalk segments, another simplification is possible.
+Rather than having to specify a specific small static/dynamic range for each
+kbox (and effectively limiting the number of free slots available on
+a given appletalk segment), one can use a special configuration.  All of
+the kboxes except one are setup with zero static and dynamic ranges.
+Then the final kbox is is setup with a larger range of addresses and a
+special configuration flag is set.  This flag allows this box to provide
+the assignment and ARP-faking service for ALL the kboxes on the same
+ether segment, resulting in more available IP addresses in the pool for
+assignment.

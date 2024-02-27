@@ -1,0 +1,545 @@
+KIP INSTALLATION INSTRUCTIONS				(11/11/86)
+
+To install and run the new gateway code involves the following steps:
+
+	Transfer the gateway source/binary files to a (UNIX) host.
+
+	Compile gateway programs.
+
+	Setup admin daemon and database.
+
+	Edit /etc/atalk.local.
+
+	Transfer gw.srec and prompt.config from UNIX to a Mac disk.
+
+	Run Kinetics 'prompt' program to download gateway.
+
+	Test gateway with 'ping' and 'ddt', 'chooser'.
+
+	Install CAP with mods.
+
+	Test printing UNIX->LaserWriter;  test EFS Mac->UNIX.
+
+	Obtain and try out new MacIP programs.
+
+
+TRANSFER FILES
+
+There are a number of files needed to use this gateway.  You can either
+FTP these files if you have internet access, or (I believe) Kinetics
+Users Group will have SONY disks available containing the same
+information for a nominal copy fee.  The following files are in the
+<info-mac> directory on sumex-aim.stanford.edu.  The file names are
+prefixed with 'at-' in the directory to set them apart from other
+info-mac files.  Use login name 'anonymous' with FTP.
+
+kip.shar	gateway and daemon source
+gw.srec		latest gateway 'binary' in S-record hex format
+ddt.shar	source for the network debugger.
+kip-patch.shar	doesnt exist yet, but will contain the
+		source for any patches/bug fixes.
+telnet.hqx	Copy of CMU/MPW MacIP Telnet.
+
+The following CAP files are available from Charlie Kim (cck) at
+Columbia University, host cu20b.columbia.edu.  Directory
+US:[US.CCK.CAP.D3].  (Copies of these are also kept on <info-mac> at
+sumex.
+
+cap.shar	CAP 2.1 libraries and programs.
+efs.shar	EFS (external file system) Mac sources and bin;
+		including mods from Dan Tappan@BBN, cck,
+		and Robert Elz;  compiled with SUMacC.
+
+You don't have to compile any Macintosh or Kinetics source code unless
+you wish to.  The file 'gw.srec' contains the latest gateway binary.
+Similarly efs.shar contains a (binhexed?) resource file.  If
+you do want to compile you will need a 68000 C compiler that runs under
+UNIX.  We use our 4.X BSD VAX with the compiler distributed with
+SUMacC.  But you can also use 68000 UNIX boxes, for example Kinetics
+uses an Integrated Solutions box.  For VAX people you can FTP these
+files from sumex-aim.stanford.edu, login anonymous, directory
+<info-mac>.
+
+sumacc.tar	68000 C compiler plus Mac libraries;  2.5 megabytes.
+		SUMacC hasnt changed since Nov 84, so this is not a 'new'
+		version.
+sumacc-rmaker.shar	(dated Aug 85)
+sumacc-rmaker-v2.shar	(dated Aug 86)
+		Later versions of the Mac resource compiler;  I believe
+		the efs.tar used the first of these but they should be
+		upward compatible.
+
+
+COMPILE GATEWAY PROGRAMS
+
+Dearchive and chdir into 'kip/etc'.  This directory contains the
+following files:
+
+	README		this file
+	atalk.local	sample host number database, copied to /etc
+	atalkad.c	appletalk admin daemon
+	atalkrd.c	appletalk rebroadcast daemon (not usually needed)
+	atalkatab	sample database for atalkad, copied to /etc
+	b.out.h		68K object file format, used by dl68.c
+	dl68.c		binary to hex conversion utility used by SUMacC;
+			or use native utility, such as 'hex'.
+	efsgettext	shell files to convert EFS text files
+	efsputtext	..
+	install		installation document
+	ip.at		specification for IP on AppleTalk
+	makefile	makefile for C progs in this dir
+	prompt.config	sample config file used by Kinetics 'prompt' program 
+	rev1086		documents the 10/86 revision of the gateway
+	stackdump	how to interpret Kinetics stack dumps
+
+Typing 'make' in this directory will result in atalkad and other
+binaries being produced.   Now 'cd ..' will take you back to the kip
+directory.  The 'gw.srec' file can be directly downloaded to
+the gateway, so you can skip the gateway compile step below if you wish.
+
+The makefile here is setup for a VAX.  Another file, makefile.68 can be
+used if you have a native 68000 UNIX;  unfortunately your native
+assembler may not understand the MIT-style opcodes used.  If so,
+find a VAX(!)  If your machine doesnt support 'flexnames', edit the
+line in fp/kfps.h as shown:
+
+	14c14
+	< define(`flexnames')
+	---
+	> |# define(`flexnames')
+
+If your UNIX prepends an '_' underscore in front of all C externals,
+remove the '-Dnoprepend' from the makefile.  Now you should be able say
+'make' and end up with a gw.srec file.  Gw.sym is also produced from
+each load and contains the complete object file plus symbol table.
+
+The network debugger ddt was developed on a VAX and assumes the b.out.h
+object file header format produced by the MIT C compiler.  This should
+be ifdefed for native compilers as well.  If you are going to
+use ddt, fetch and dearchive it.  Typing 'make' in that directory
+should result in a 'ddt' executable that can be copied to a directory
+such as /usr/local/bin.
+
+
+SETUP ATALKAD AND DATABASE
+
+The appletalk administrator daemon, /etc/atalkad, runs on only ONE of
+the UNIX hosts in your organization / department.  So this document
+section will only be used by your campus appletalk administrator.
+
+Chdir to kip/etc, become su, and type 'make install' and 'make
+installonce'.  The first install copies the daemon binary to /etc.  The
+one-time only install copies atalkatab and atalk.local to /etc and
+starts off the log file in /usr/adm/atalkalog.
+
+You now need to edit the files /etc/atalkatab and /etc/atalk.local to
+correspond to your local network configuration.  Print out and read
+over the comments in atalkatab to see the format of the data.
+
+In this example file, we show a campus using a class B network number,
+128.222.s.h, where 128.222 is the class B net, 's' is the subnet number
+of the ethernet segment, and 'h' is host number on that cable.
+Remember that that there are no dependencies now on subnets in the
+gateway code, so this example showing subnets could just as easily have
+used separate class C numbers for the ethernet segments.
+
+For ethernet segments that act as appletalk cables there is a relation
+between the IP address (combined net/host number) of a host on that
+cable, and the appletalk net/node numbers of the same host.  The net
+number parts are totally different, but the low byte of the IP address
+(host number) corresponds exactly to the appletalk node number.  The
+appletalk net and IP net numbers are only related by a line in the
+atalkatab file, mapping an appletalk net number to an IP net number.
+
+In the example note that the 16 bit (two byte) appletalk net number
+(anet) can be written in 'dot notation', e.g. '55.13'.  This means the
+upper byte of the anet is 55 and the lower byte is 13;  these values
+are in decimal, so the maximum anet number would be 255.255.
+
+Now for administrative simplicity we have chosen to have two ranges
+of anet numbers.  Anet numbers 55.XX will be used to represent ether
+segments, where XX is set equal to the third byte of the IP address
+of that ether cable (i.e. the subnet number for class B nets
+or simply the 3rd byte of a class C number).  And anet numbers
+56.YY will be used to represent appletalk cables, where we just assign
+a new number YY starting at 1 for each new cable.  For your own
+situation you can use whatever scheme you wish:  you could use other
+values than 55/56, or you could even decide to number your ether
+segments in the same range with the appletalk segments.  It's not
+important.
+
+With this backround you should now be able to understand the sample
+file.  The first three lines describe ether cables acting as appletalk
+nets.  Note the 'N1' flag which means that this is an IP net number,
+and to form the broadcast address we add a single '.255' to the given
+IP address.  Note that your main campus IP gateways must support directed
+broadcasts in one of these formats.  
+
+If your net doesnt have directed broadcast capability:  (1) convince
+your gateway vendor to put it in;  (2) in the meantime you can use the
+'H' flag in atalkatab.  The kboxes can act as 'rebroadcast' servers; we
+also provide a program atalkrd.c (rebroadcast daemon) that can run on a
+4.X BSD UNIX machine.
+
+After the first group of three lines in the sample atalkatab, there
+follows three groups of seven lines each.  Each of these groups
+describes an ether segment containing a kbox, the appletalk cable /
+kbox, and then the configuration data for that kbox.  Probably the best
+way to proceed would be to use one of these groups of seven as a
+template for your site.  And then for each additional kbox at your
+site, dup your own template and further customize it.  Of course you
+will want to delete or change all of the sample data we provide to
+correspond to your site only.  Dont leave any of the provided sample
+entries in your actual database.
+
+In this section we describe the fields used in the current
+configuration information.  The atalkad daemon is rather stupid when it
+comes to interpreting this data.  It just treats the data as a byte
+stream that is shipped to the gateway;  it has no knowledge of the
+format or legal values possible in these fields.  So you have to be a
+little careful.  That is why it is a good idea to dup an existing
+template as a model in editing in your own data.  Note that each field
+is preceded by a data type indicator;  it is very important to preserve
+this type selection byte.  It also may be a little confusing, since the
+'network description' line that preceeds the configuration information
+does NOT use these prefix bytes.
+
+FIELDNAME	DESCRIPTION
+ipbroad		is the IP address used on the ethernet cable to do a
+		broadcast on that ether cable.  Use the network number
+		qualified form (NOT 255.255.255.255).
+ipname		address of a name server, passed to MacIP programs.
+ipdebug		address of the host allowed to run ddt.
+ipfile		address of a file server, passed to MacIP programs.
+ipother		four other IP addresses or long integers passed to
+		MacIP programs.
+unused		these two shorts are currently unused.
+flags		a long word of bit flags, currently undefined.
+ipstatic	the number of statically assigned MacIP addresses;
+		read the 'ip.at' document in this directory.
+ipdynamic	the number of dynamically assigned MacIP addresses;
+		the gateway uses a 'range' of IP addresses on the ether
+		side;  the number of addresses is 1+ipstatic+ipdynamic.
+atneta		appletalk net number, appletalk side;  note that
+		this should be the same number as was specified on the
+		first line describing this kbox.
+atnete		appletalk net number, ether side;  should match the
+		number of the ether segment on which this kbox sits
+		(for convenient reference, the sample shows this number
+		on the line preceding the kbox).
+zonea		this is the zone name string used in the current stub
+		ZIP implementation.
+
+Now that /etc/atalkatab is complete, you should start the daemon,
+/etc/atalkad.  You should be su for this.  Check the log file
+/usr/adm/atalkalog to see if any errors were detected in parsing the
+database.  Edit your /etc/rc.local to add a line to start atalkad
+whenever your administrator host boots.
+
+
+EDIT /ETC/ATALK.LOCAL
+
+EACH UNIX host that wishes to use CAP utilities and libraries must have
+an /etc/atalk.local file.  (Atalkad doesnt need CAP).  Now that your
+departmental appletalk administrator has chosen appletalk net numbers
+for your local cables, you need to edit this information into
+/etc/atalk.local.  This file looks like:
+
+	# mynet mynode myzone 
+	55.9 5 TWILIGHT
+	# bridgenet bridgenode bridgeIP
+	55.9 240 128.222.9.240
+
+Just type in the appletalk net number for the UNIX's ether cable as the
+first number.  The second number will be the low byte of the host's IP
+address.  The third field is the local zone name, currently unused.  On
+the second (noncomment) line we give the address for the 'closest'
+kbox.  The first and second numbers are the anet and node number.  The
+third number is the IP address of the kbox.  (This can be a IP host
+name as well but since 4.2 BSD name lookup is very slow, we recommend
+putting just the number here).
+
+
+SETUP GW.SREC AND PROMPT.CONFIG ON MAC DISK
+
+Each kbox must be downloaded with its program and minimal configuration
+information.  These files plus the Kinetics program 'prompt' (the
+downloader) must all exist on a Mac disk.  It also helps to have a copy
+of 'edit' on the disk to customize the prompt.config file.  So you need
+to use macput, efs, kermit, etc., to put the files gw.srec and
+prompt.config onto this disk.  Here is what the sample prompt.config
+file looks like in this directory:
+
+	* Config file for KFPS, KIP version, 10/86.
+	*
+	* A future version of the 'prompt' program will recognize
+	* a line containing a 'dot format' address and convert those
+	* four decimal byte values to four hex bytes(!)
+	*
+	* These bytes are ignored but must be left as placeholders: 
+	0000 0000 FF FF FF 00 000000 000000
+	* Gateway name (in this example, "gw")
+	677700000000000000000000000000000000000000
+	* File name (in this example, "gw.srec"): 
+	67772E737265630000000000000000000000000000
+	* reserved (this field should be 00FF): 
+	00FF
+	*
+	* Start of 'mandatory' parameters, the minimum information that
+	* must be supplied for the gateway to begin operation.
+	*
+	* IP address of myself, 'ipaddr'
+	* 128.222.9.240
+	80de09f0
+	* IP addr of admin host
+	* 128.222.9.5
+	80de0905
+	* IP addr of default route (nearest 'real' gateway)
+	* 128.222.9.16
+	80de0910
+	* ethernet hardware addr of KFPS;
+	* 080089 is the Kinetics manufacturer code,
+	* remaining bytes are the serial number of your box.
+	080089 F00777
+	* next value is a flag, if it is '1234' the remainder 
+	* of this file is considered valid;  any other value means
+	* that the remaining parameters will be obtained from atalkad.
+	0000
+
+What we do here at Stanford is make a XXX.config file version for each
+kbox, where XXX is replaced by the kbox name or address.  Since all
+the 'prompt' parameters are supplied in this file, no typeins have to
+be done into the prompt dialog boxes.  This simplifies the downloading
+procedure for operations staff.
+
+Here then is the procedure for downloading;  note that all of the
+operations involving 'prompt' should allow no more than 30 seconds of
+'idle' time for the gateway.  Otherwise the gateway will just enter its
+automatic power up reboot sequence;  not what you want.  The 
+instructions below are for prompt version 1.12;  Kinetics is making
+some revisions/simplifications so these instructions may change
+slightly.
+
+(1) ensure the ethernet and appletalk cables are plugged in to the
+kbox.  (2) power cycle the kbox.  It should be possible to avoid this
+power cycle step and just use the controls on the prompt program.
+However the current PROMs have a bug that makes this unreliable.  So
+best to cycle the power.  (3) run 'prompt' on the Mac and select menu
+Gateways/Find Gateways.  (4) press the RESET button.  This will clear
+out any old programs; answer 'yes' to any 'are you sure' questions.
+(5) now do another Find Gateways.  (6) press the LOAD button, it will
+prompt for file name, specify the gw.srec file.  (7) after the LOAD
+finishes, press CONFIG, this will prompt for a file, specify your
+XXX.config file.  (8) press SETUP, this will download the XXX.config
+info to the gateway.  (9) press GO, this will start the new code.
+
+If you have a 'peek' running on the appletalk (enable reception of
+RTMPs) you should see some gateway broadcasts startup in a moment.  If
+you look in atalkalog, you will see messages indicating that config and
+routing info has been sent to the new gateway.
+
+
+TEST GATEWAY WITH PING, DDT, CHOOSER.
+
+From UNIX you should be able get a response by sending an ICMP echo
+packet to the gateway.  Use the 4.X BSD command 'ping IP_address'.  If
+you have the ddt running you should be able to say 'ddt gw.sym
+IP_address', then 'main/'.  Successive '/'s will open up following
+locations.  On a Mac, run chooser and/or print some files on your
+LaserWriter to verify that the name binding protocol is working ok.
+Follow the same procedure for subsequent gateways.  Chooser should now
+show the union of all your printers or other resources.
+
+
+ATALKAD GLOBAL OPERATIONS
+
+The admin daemon will reread its /etc/atalkatab file whenever the write
+date changes.  But note that the file must be rewritten in place --some
+editors relink the old file to filename.BAK, etc.  The gateways only
+ask for config and routing info when they boot, so if you have changed
+this info, you must tell the daemon to force it out to all gateways in
+your domain.  This is done by sending the running atalkad a special
+signal.  Typing the command '/etc/atalkad route' will send new routing
+tables to all the gateways.  Typing '/etc/atalkad boot' will cause all
+gateways to reload their config info AND routing tables.  Note that a
+backround atalkad must be running;  these commands just send a signal to
+that running daemon.
+
+So the rule might be, whenever you add or change the routing
+information in atalkatab (the lines that start in column 1), you should
+do an atalkad route.  If you only change the kbox config info and are
+going to manually reboot that box, there is no need to tell everybody
+about it.  However if you want to change the kbox config without
+leaving your chair, you'll have to reboot everybody with a atalkad
+boot.  I suppose we should add a 'atalkad boot net#', to reconfigure a
+specific box, but we havent yet.
+
+
+INSTALL CAP OR KHOST
+
+Currently only CAP libraries can talk to the new gateway code, but it
+is hoped that someone will convert the Kinetics KHOST library to use a
+similar scheme.  As discussed in the 'LIBRARY INTEGRATION' section of
+the 'rev1086' document, this should be straightforward.  KHOST may be
+valuable for running binaries of commercial products such as TOPS or
+MacNIX.
+
+Dearchive the cap files.  If the cap you have is still version 2.1,
+then transfer and dearchive the cap-mods.shar file on top of your
+previous cap directory.  This will replace selected files with new
+versions.
+
+I'm surprised there is no general installation document in the current
+CAP distribution, so here is a cursory outline.  First chdir to your
+cap directory and become superuser.
+
+	In the include directory, type 'make install'.  This will
+	create /usr/include/netat and copy some files there.
+
+	In the lib directory, check the Makefile to see where it will
+	install the final libcap.a.  This should be someplace like
+	/usr/lib or /usr/local/lib.  Type 'make' then 'make install'.
+
+	In the etc directory check the Makefile to see where it
+	installs things.  At Stanford we put the cap executables in
+	/usr/local/lib/cap.  We also make a sym link to there from
+	/etc/cap for easier typing.  Type 'make' and 'make install',
+	this installs the 'atis' (appletalk info server) which handles
+	local name binding requests.
+
+	Also in this directory there is a file 'cap.printers'.  This
+	file tells cap how to convert from the UNIX printcap printer
+	name to an appletalk printer name.  The example shows the
+	appletalk name as 'LaserWriter Plus', but this is a poor idea.
+	It is better to rename your laserwriters to have unique
+	appletalk names using 'The Namer' program on your 'Printer
+	Installation' disk.  Copy cap.printers to /etc and edit it for
+	your local installation.  If you have multiple synonyms
+	for your printcap printer name, I believe you need to have
+	duplicate lines for each such name in this file.
+
+	In the 'samples' directory are all the executable cap
+	programs.  Check the Makefile for install location, then
+	type 'make', 'make install'.  The main programs of use here
+	are:  papif - the printer access protocol input filter (for
+	the UCB printer spooler);  efsd - external file system
+	daemon;  look and looks - print list of active names bound
+	on the appletalk.
+
+	Look at the 'printcap.sample' file here and put a similar entry
+	in your /etc/printcap for each of your appletalk laserwriters.
+	Create appropriate /usr/spool/printername directories and files
+	with the proper ownership permissions (see the UCB spooler
+	manual).  You probably only need to setup appletalk printer
+	access on a few of your UNIX boxes.  The rest of the UNIXes can
+	easier reach the appletalk printers by use of the printcap
+	indirect spooling parameters 'rm' and 'rp'.
+
+	In your /etc/rc.local file add an entry similar to this to
+	start atis and efsd when your UNIX reboots:
+
+		if [ -f /etc/cap/atis ]; then
+			(cd /etc/cap; atis; sleep 10; efsd) & 
+			echo -n ' appletalk' >/dev/console
+		fi
+
+The first host you install cap on will of course contain both source
+and binaries, but for installation on subsequent hosts you just need
+to copy over /etc/cap/* and make the modifications to control files
+(/etc/printcap, /etc/cap.printers, /etc/rc.local, /etc/atalk.local,
+/usr/spool/printername/*).
+
+
+TEST UNIX PRINTER ACCESS AND FILE SERVICE
+
+With atis and efsd running you can now checkout access from UNIX to
+appletalk and from appletalk to UNIX.  Having an appletalk Peek program
+running at the same time will let you see what is going on out on the
+net.  First type '/etc/cap/look', this should return a list of all
+registered names on your appletalk, including the efs daemon(s) on your
+UNIX machines.
+
+Use 'setenv PRINTER printername' to change the lpr/lpq printer
+environment variable to point to one of your laserwriters.  Then send a
+text or PostScript file to the printer with 'lpr filename'.  Typing
+'lpq' periodically will let you check the queue status.  Look at
+the log file in the /usr/spool/printername directory to see if things
+look ok.  Papif prints an entry there on startup, shutdown, and
+error conditions.
+
+Download the efs.rsrc file from your UNIX to your Mac using MacTerminal
+and 'macput -r efs.rsrc' or some other means.  Someone should also
+provide a Binhex4 hqx version of efs to make downloading easier.  On my
+Mac Plus, with cache turned on, efs only seems to work correctly if it
+is the first program you run after startup.  Probably has to do with
+the memory allocation technique used at the top of memory instead of
+the system heap (like the old efs).  Anyway, now the driver is loaded
+and you can use the 'EFS Mount' desk accessory to mount a volume.  If
+EFS Mount isnt in your Apple menu, rerun the efs application and select
+'File / Install DA'.  This only needs to be done once and will put the
+Mount DA into your System file.  You can also fool with the Set
+Defaults menu item.
+
+EFS Mount prompts you for your UNIX password, user name, host name and
+directory.  The host name is the same one that UNIX displays with the
+'hostname' command;  typically just the leftmost part of the internet
+domain host name.  The directory defaults to 'mac' in your UNIX
+homedirectory;  so you should first 'mkdir mac' on UNIX if you dont
+have one yet.  You may also want to setup a public UNIX account with an
+appropriate name and password and give this information to your user
+community.  They can mount this volume to access public programs and
+data.
+
+Bear in mind that appletalk and efs are not as zippy as NFS, so it is
+wise to only put a couple dozen files in each volume at a maximum.
+This is in part due to the fact that efs still uses MFS and not HFS, so
+that folders will not decrease the amount of directory scanning that
+the Finder and other programs are doing.  Perhaps someone will fix this
+soon.  Or let's hurry up and get TOPS running with this new gateway.
+
+Each volume you mount invokes the efs daemon to fork another process
+for you, so obviously this doesnt scale well to user communities of
+thousands.  Also the daemon processes currently have their timeouts
+disabled so that you must be careful when you are finished using efs:
+You should throw the efs volumes in the trash can OR use Special /
+Shutdown.  This assures that the per volume daemons on UNIX will exit
+cleanly.  The efsd.c source has some ifdefs to enable an activty timer
+that can automatically exit after so much idle time;  you may want to
+turn this on in a student or novice user environment.
+
+
+NEW MAC IP PROGRAMS
+
+As announced on info-applebus, new versions of the MacIP programs
+'telnet', 'tftp' and 'ftp' are available to run with this new gateway
+code.  (Tftp only comes with CMU Pascal MacIP;  Ftp only comes with
+Stanford C MacIP).  These programs are assigned their IP addresses
+automatically by the gateway, so no configuration or customization
+files are necessary on your Mac disk.
+
+The CMU version is available (at a location announced on info-applebus)
+in binhex hqx format.  To run it just transfer it to your site and
+download it to the Mac (first time only) with macput or kermit.  Then
+use binhex to reconstitute it.
+
+The Stanford version is currently only being distributed on a (low
+cost, $50) license arrangement.  For more information from the Stanford
+ACIS/Networking department you can email to:
+
+	macip@ahwahnee.stanford.edu 
+
+or send U. S. Mail to:  
+
+	SU-MacIP
+	Stanford Univ.
+	ACIS Networking
+	Pine Hall
+	Stanford, CA  94305
+
+The license arrangement currently involves signing a license form.  For
+licensees ACIS is planning on having a special FTP account available on
+a Stanford UNIX host from which you can obtain the latest source/binary
+copy.  (My personal opinion is that ACIS should 'give away' the
+binaries free but use this scheme for sites that desire source access.
+However it appears that ACIS is using this method for both source and
+binary, sigh).

@@ -1,0 +1,53 @@
+* Config file for KFPS, KIP version, 10/86.
+*
+*   This is the version used at Purdue with the Xinu project.
+*
+* A future version of the 'prompt' program will recognize
+* a line containing a 'dot format' address and convert those
+* four decimal byte values to four hex bytes(?)
+*
+* These bytes are ignored but must be left as placeholders: 
+0000 0000 FF FF FF 00 000000 000000
+* Gateway name
+* (Ours is Brastius, a warden of the north in King Arthur's court).
+427261737469757300000000000000000000000000
+*
+*          For those of us who think in ASCII!!!
+* | 20 sp | 21  ! | 22  " | 23  # | 24  $ | 25  % | 26  & | 27  ' |
+* | 28  ( | 29  ) | 2a  * | 2b  + | 2c  , | 2d  - | 2e  . | 2f  / |
+* | 30  0 | 31  1 | 32  2 | 33  3 | 34  4 | 35  5 | 36  6 | 37  7 |
+* | 38  8 | 39  9 | 3a  : | 3b  ; | 3c  < | 3d  = | 3e  > | 3f  ? |
+* | 40  @ | 41  A | 42  B | 43  C | 44  D | 45  E | 46  F | 47  G |
+* | 48  H | 49  I | 4a  J | 4b  K | 4c  L | 4d  M | 4e  N | 4f  O |
+* | 50  P | 51  Q | 52  R | 53  S | 54  T | 55  U | 56  V | 57  W |
+* | 58  X | 59  Y | 5a  Z | 5b  [ | 5c  \ | 5d  ] | 5e  ^ | 5f  _ |
+* | 60  ` | 61  a | 62  b | 63  c | 64  d | 65  e | 66  f | 67  g |
+* | 68  h | 69  i | 6a  j | 6b  k | 6c  l | 6d  m | 6e  n | 6f  o |
+* | 70  p | 71  q | 72  r | 73  s | 74  t | 75  u | 76  v | 77  w |
+* | 78  x | 79  y | 7a  z | 7b  { | 7c  | | 7d  } | 7e  ~ | 7f del|
+*
+* File name (in this example, "gw.srec"): 
+67772E737265630000000000000000000000000000
+* reserved (this field should be 00FF): 
+00FF
+*
+* Start of 'mandatory' parameters, the minimum information that
+* must be supplied for the gateway to begin operation.
+*
+* IP address of the Kinetics box on the ethernet.
+* 128.10.2.90 (brastius on ethernet)
+800a025a
+* IP addr of admin host on the ethernet, the one that runs atalkad.
+* 128.10.2.8 (gwen)
+800a0208
+* IP addr of default route (nearest 'real' gateway)
+* (This config uses lamerok, 128.10.2.18) 
+800a0212
+* ethernet hardware addr of KFPS;
+* 080089 is the Kinetics manufacturer code,
+* remaining bytes are the serial number of your box.
+080089 F00715
+* next value is a flag, if it is '1234' the remainder 
+* of this file is considered valid;  any other value means
+* that the remaining parameters will be obtained from atalkad.
+0000

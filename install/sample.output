@@ -1,0 +1,9 @@
+Xinu directory is /u10/sbm/Xinu/test
+Installing source file ../fs/fsd.c.RAW
+Installing source file ../fs/Makefile.RAW
+Installing source file ../fs/Doform.RAW
+Finished installing Xinu source files.
+
+To complete installation, run make in directory
+../fs and install the gateway software according
+to the directions from Kinetics.

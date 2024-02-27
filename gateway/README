@@ -1,0 +1,57 @@
+This directory contains the following files:
+   README:
+      This file, which contains the modifications necessary for the
+      basic KIP / Kinetics package.
+      
+   gw.c:
+      The modified version of gw.c.  The modification allows IP broadcasts
+      on the "real" ethernet to get onto the Appletalk Net.  The software
+      already allowed IP broadcasts out.  This change allows the Xinu
+      "ruptime" command to print information collected from rwho
+      broadcast packets.  A flag has been allocated from one of the
+      old, now unused, subnet mask fields.  When 1, broadcasts can get
+      in, when 0, they cannot.  The standard KIP software will work fine
+      with the Xinu code if preferred.  The altered code is
+      substituted by defining the cpp symbol PURDUE.
+      
+   atalkatab:
+      The file which is downloaded from the Unix host to the Kinetics host
+      at reboot time.  This file is in standard form, except that
+      the field noted above, (and commented in the file), is now used to
+      control broadcasts.
+	       
+   atalk.local:
+      Used by the atalkad program.  This is our version.
+   
+   gw.srec.broadcast:
+      The s-record file that is downloaded into the Mac.  This is the
+      compiled version of the 2/87 KIP code, with the modified gw.c file
+      from above, in the format necessary to download using the Kinetics
+      Prompt program.
+
+   config:
+      This is the companion file to gw.srec above.  It sets some of the
+      Kinetics parameters, with most of them now being set by the
+      Unix host running atalkad and the file atalkatab.
+
+   src:
+      The public domain distribution of the KIP source code, with the
+      modification made to gw.c as described above.  The compiled
+      program, gw.srec, is the same as the version, gw.srec.broadcast,
+      in the main directory.
+
+When making changes to the code, it might be helpful to keep in mind the
+following information about OUR setup upon which the files are built.
+You will have to substitute local information about your site in place
+of these names and addresses.
+
+    1) Our local ethernet, 128.10.2.0, is a class B network, in that
+       the first 2 bytes give the network number, and the last 2 give the
+       host number, (even though all hosts on the present network
+       start with 2).
+    2) Our Kinetics box is named Brastius, and is IP address 128.10.2.90
+    3) We have 10 Macintoshes allocated in the IP map from
+       128.10.2.91 to 128.10.2.100, 5 are static, and 5 are dynamic.
+    4) Our Unix server running atalkad is named Gwen, and is IP
+       address 128.10.2.8.
+    5) Our name server is IP address 128.10.2.5.

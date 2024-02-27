@@ -1,0 +1,16 @@
+#!/bin/sh
+# shell file to copy a text file into the mac directory
+# usage:	efsputtext sourcefile destdirectory
+tr "\012" "\015" <$1 >$2/$1.DF
+cp /dev/null $2/$1.RF
+if test -r $2/$1.IF
+then
+	echo replacing existing data fork
+else
+	echo -n "TEXTEDIT@@@@@@@@" >$2/$1.IF
+	adb -w $2/$1.IF <<EOF >/dev/null
+	8?W 0
+	0c?W 0
+EOF
+	echo created new data and info forks
+fi

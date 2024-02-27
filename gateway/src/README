@@ -1,0 +1,28 @@
+Files in this directory:
+
+README		this file
+HIST		modification history
+ab.h		apple'bus' definitions
+arp.c		address resolution protocol
+conf.h		compile time configuration
+crt0.s		C runtime startoff
+etc/		directory with daemon, documents
+ether.h		ethernet defs
+fp/		fastpath defs
+glob.h		global variables
+gw.c		main gateway module
+gw.h		gateway defs
+gw.srec		hex downloadable gateway binary
+gw.sym		gateway binary with symbol table
+gw2.c		2nd gateway module
+gwasm.s		some assembler helper routines
+gwctl.h		gateway control packets
+ie.c		Intel 82586 ethernet driver
+ie.h		Intel defs
+inet.h		internet protocol defs
+init.c		initialization of R/W DATA areas
+makefile	makefile
+mung_gw.h	some C compilers only hack 8 char symbols
+rtmp.c		RTMP and other routing code
+s0		initial S-record 
+send.c		printf utility

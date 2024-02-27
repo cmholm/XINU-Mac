@@ -1,0 +1,57 @@
+Installation Details
+------------ -------
+
+This is file {Xinu-directory}/install/README.  It contains
+instructions for installing the Xinu software and recompiling
+it.  These instructions instructions must be followed:
+(a) after the distribution tape has been read in, or
+(b) after the Xinu directory has been moved.
+
+**************************************************************
+***                     4.2BSD Users                       ***
+*** NOTE: if you are still running 4.2bsd, you must remove ***
+*** all the 4.3 files and libraries before doing anything  ***
+*** else.  To do so, type the following:                   ***
+***                                                        ***
+***             cd {Xinu-directory}/install                ***
+***             ./Install 4.2                              ***
+**************************************************************
+
+Installation involves changing references to {Xinu-directory}
+in all source files and then recompiling them.
+
+Step 1:	Execute shell script "Install" in this directory
+	to climb around the tree and create final versions
+	of the source files.  Look at the file sample.output
+	to see what to expect.
+
+		cd {Xinu-directory}/install
+		./Install
+
+Step 2:	Change to the file server directory and install the
+	new versions:
+
+		cd {Xinu-directory}/fs
+		make install
+
+	You do not need to be superuser; only directories
+	under {Xinu-directory} are affected. 
+
+Step 3:	Install the Stanford SUMacC cross compiler.  The makefiles
+	in {Xinu-directory}/gateway expect the compiler to be in
+	/usr/stanford/bin.
+
+Step 4:	Follow the installation instructions that come with the
+	Kinetics FastPath gateway to install the software in
+	{Xinu-directory}/gateway/src.
+
+Step 5:	Once the VAX software is installed, you can run the test
+	version of Macintosh XINU on the Macintosh in directory
+	/XINU/sys/sys.  See the README file on the Macintosh in
+	directory /XINU.
+
+Suggestions
+-----------
+
+   Suggestions and reports of problems are welcomed.
+

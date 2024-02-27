@@ -1,0 +1,342 @@
+IP BROADCASTING ISSUES
+
+This note attempts to explain some of the peculiarities of internet (IP)
+broadcast addressing, and how these relate to the setup of the KIP
+code.  Topics covered include:
+
+	Broadcasts and 'directed' broadcasts.
+	Appletalk broadcast addresses.
+	Appletalk NBP use of broadcast.
+	IP address formats.
+	IP broadcast formats.
+	Sample atalkatab database files.
+
+
+BROADCASTS AND DIRECTED BROADCASTS
+
+For every protocol family (IP, Appletalk, ISO, etc.) the basic packet
+datagram contains source and destination address fields.  The source
+address is always set to the address of the machine (host) sending the
+packet.  The destination address is usually set to the address of a
+specific single host that is to receive the packet.
+
+However there are a limited number of cases in which we wish ALL hosts
+on a given cable to receive a copy of the packet.  For example one may
+not know the address on which a particular service resides, so a
+request packet can be sent to all hosts on that cable;  then only those
+service hosts which want to, will reply.
+
+The addresses used in the packet datagram for source and destination
+always contains a 'net number' field (or part) and a host number field
+or part.  The host number field has a special distinguished value to
+indicate that this is a broadcast address.  Typically this value is all
+ones (e.g. hex FF...) or (less prefered) all zeros.
+
+When sending a broadcast packet, if the net number of the sender is the
+same as the net number in the destination address field, then this
+broadcast is a 'local' broadcast where the sender and receivers are on
+the same physical cable.  In this case the sender will pass the packet
+to the physical layer driver with an indication that it is to be
+broadcast on the local cable.
+
+But these protocol families operate in an 'internetworked' environment
+where each physical cable has different net number in the address.
+It may be that we wish to perform a broadcast, not to the local cable 
+(network number), but to a network several bridge hops away.  In this
+case the destination net number field will differ from the source
+net number.  This is called a directed broadcast.
+
+The original sender of a directed broadcast recognizes that the net
+number of the destination address differs from its own local net
+number.  So it forwards this packet to the 'bridge' (router or gateway)
+on the local cable.  The bridges will then forward the packet to each
+other until it reaches a bridge on the destination cable.  That bridge
+will then pass the packet to the physical layer driver with an
+indication that it is to be broadcast on the cable.
+
+
+APPLETALK BROADCAST ADDRESSES
+
+Appletalk addresses are very simple.  There is a 16 bit net number
+and an 8 bit host number.  The host number 'all ones' (hex FF) indicates
+a broadcast address.
+
+
+APPLETALK NBP USE OF BROADCAST
+
+The appletalk protocol family contains a protocol 'NBP', Name Binding
+Protocol.  Appletalk 'names' are ascii strings used to locate a named
+resource, such as a LaserWriter or file server.  An appletalk name
+consists of three parts, written as 'object:type@zone'.  The 'type'
+might be 'LaserWriter' or 'fileserver'.  'Object' is used to
+differentiate a particular instance of that resource type.  'Zone' is a
+concept used to limit the name search to only a subset of all the
+cables that makeup an Appletalk internetwork.
+
+When an appletalk client wishes to perform a name to address lookup
+operation, it formats a request packet containing the name string and
+then sends this to the closest bridge on the local cable.  The bridge
+has an internal table (routing table) showing the net number, zone name,
+and next hop address for each cable in the appletalk internetwork.
+
+The bridge takes the client lookup request and sends a copy, a directed
+broadcast, to each net (cable) in the referenced zone.  Thus each
+client NBP lookup turns into a flurry of directed broadcasts reaching
+every host in that zone.  The destination host who has internally
+registered the name being looked up, will reply to the lookup client,
+and the transaction will be complete.
+
+
+IP ADDRESS FORMATS
+
+Internet protocol (IP) addresses are 32 bits in length (4 bytes) and
+are typically written in 'dot notation', with each byte of the address
+in decimal (0 to 255) separated by dots.  For example, '36.44.0.123'.
+
+IP addresses do not contain a fixed size net number part and a fixed
+size host number part, thus they are not as simple to parse as
+appletalk addresses.  Rather the size of the net number part of the
+address depends on the upper bits of the first byte of the IP address.
+The net number part can be one, two or three bytes in length.  This
+corresponds to IP 'address class' A, B, and C, respectively.   The
+table below (from RFC791, Internet Protocol Specification) shows the
+class types based on the high order bits of the first byte.
+
+	Class	High bits	Format
+	A	0		7 bits of net, 24 bits of host
+	B	10		14 bits of net, 16 bits of host
+	C	110		21 bits of net, 8 bits of host
+
+
+IP BROADCAST FORMATS (THE 'PROBLEM')
+
+It is most straightforward in implementing the appletalk NBP services
+to map the appletalk directed broadcasts into corresponding IP directed
+broadcasts.  Ah.  Now we come to the problem.  A standard for IP
+broadcasting was written in 1984:  RFC919, Broadcasting Internet
+Datagrams;  and RFC922, Broadcasting Internet Datagrams in the Presence
+of Subnets;  both by Jeff Mogul.  However only a few of the many IP
+'vendors' in the real world are in compliance with this spec.  (4.3 BSD
+UNIX does comply).
+
+  Basically RFC919/922 says that a broadcast address consists of the
+  normal 'net part' plus 'all ones' in the 'host part'.  So a class B
+  broadcast address might be 128.111.255.255 (two bytes of net number
+  and two bytes of host number); a class C might be 192.22.3.255 (three
+  bytes net number and one byte host number).
+
+  When 'subnets' are involved (with a class B or A net number) some
+  subsection of the 'host part' becomes the 'subnet number'.  For
+  example 128.111.2.67 could be refering to net 128.111, subnet 2, host
+  67.  For situations like this, the broadcast version just replaces
+  the final host part with all ones.  So the broadcast address for
+  cable (subnet) 2 would be 128.111.2.255.
+
+  Finally RFC919/922 allows the use of a 'local broadcast only' address
+  (255.255.255.255), when the sending machine does not know its own
+  network number and simply wishes to send to all hosts on the local
+  cable.
+
+Unfortunately 4.2 BSD was released prior to RFC919/922.  4.2 BSD
+arbitrarily chose 'all zeros' for the host part as indicative of a
+broadcast address.  And 4.2 BSD had no provision for generating or
+recognizing subnet broadcast addresses.  Since a number of 'vendor'
+products were adaptations of the 4.2 code, this convention is more
+widespread than one would imagine.
+
+As long as all the hosts on your ethernet use the same IP broadcasting
+conventions, you are ok.  But during the next year or so, you may end
+up with a mix of the old (4.2) and new (4.3) conventions.  The problem
+is that the host receiving a 'wrong' broadcast does not recognize it as
+such.  This means (1) processes on that host can not receive
+broadcasts.  (2) if the host is silly enough to try 'forwarding' this
+broadcast packet, it will in turn initiate an ARP broadcast request
+(address resolution protocol) packet searching for this address.  Of
+course no one will respond, but this generates extra needless traffic.
+If several hosts are misbehaving like this, pileups and collisions can
+occur on your ethernet cable.  (3) Some hosts even generate ICMP error
+packets if they receive an unrecognized broadcast.
+
+The answer for #1 and 3 is to convince your vendors to come into
+compliance with RFC919/922 ASAP.  We also give some 'temporary'
+solutions in the next section below.  For case #2, we suggest turning
+off 'forwarding' in workstations that only have one network interface.
+For example this can easily be done in 4.2/4.3 BSD by patching the
+'ipforwarding' kernel variable to zero, using adb.
+
+As you can imagine, this lack of IP broadcasting standards is causing
+grief in other communities as well.  Below we reprint some recent
+traffic on the 'tcp-ip' bboard.  Phil Karn suggests an even easier
+criterion for recognizing broadcast packets.
+
+> Date: Tue, 3 Feb 87 20:10:24 EST
+> From: karn@jupiter.bellcore.com (Phil R. Karn)
+> To: tcp-ip@nic.sri.com
+> Subject: Inappropriate responses to broadcasts
+> 
+> Some time ago, there was discussion about IP implementations which
+> respond inappropriately to broadcast packets.  A number of solutions
+> were offered, the best one (in my opinion) being a flag to tell IP when
+> a packet was received on a hardware broadcast address so that it would
+> not try to forward it or respond to it with an ICMP message.
+> 
+> Since then, there seems to have been virtually no progress among the
+> vendors in implementing these fixes. Here at Bellcore we run a rather
+> large network consisting of Ethernets at several locations bridged
+> together with DEC LanBridge 100's and Vitalink Translan-3s.  With so
+> many hosts on the same "virtual Ethernet", from time to time broadcast
+> packets with bogus IP addresses are bound to appear.  Right now there
+> is one Microvax running Ultrix 1.2 that has its netmask set improperly.
+> A single rwho packet from that machine triggers literally HUNDREDS (as
+> counted with my Excelan Lanalyzer) of ARP requests.  This represents
+> practically every host on the network!!  I cringe to think that before
+> long many more of our machines will be running 4.3 BSD-derived code
+> that allows the setting of the IP broadcast address to any bogus value
+> the heart desires.
+> 
+> At Uniforum in DC the other week I played with the Lanalyzer at the
+> Excelan booth. Guess what? Most of the packets on the net were ARP
+> requests because of one machine that didn't have its IP broadcast
+> address set right!  I felt right at home.  At least I now know what to
+> say the next time a vendor tells me "get our latest release and then
+> call me back".
+> 
+> If something more formal than the TCP-IP archives is needed to get the
+> vendors to act, I hereby volunteer to write the RFC.  I would require
+> that the link or subnet pass a "multicast" bit to IP indicating when an
+> incoming packet is received on a hardware broadcast or multicast
+> address.  If this bit is set, IP must refuse to forward the packet or
+> answer it with an ICMP message.  It should also refuse to pass the
+> packet up to TCP, should its protocol ID appear in the header.
+> Naturally, the multicast bit would always be zero for packets received
+> on non-broadcast and point-to-point subnets.
+> 
+> Since there are so many incompatible conventions for IP broadcast
+> addresses, I suggest that they be done away with altogether.  Since
+> gateways never forward broadcasts, the IP destination address in a
+> broadcast UDP packet has no real meaning and should be ignored.  The
+> fact that the packet was sent to the hardware broadcast address should
+> be enough to say "this is a broadcast packet".
+> 
+> Phil
+> 
+> Date:     Sat, 7 Feb 87 23:02:16 EST
+> From: Mills@UDEL.EDU
+> To: "Phil R. Karn" <karn%jupiter.bellcore.com@UDEL.EDU>
+> Cc: tcp-ip@sri-nic.arpa
+> Subject:  Re:  Inappropriate responses to broadcasts
+> 
+> Phil,
+> 
+> The fuzzball gateways used on the NSFNET Backbone, among other places,
+> incorporate a "martian filter" that grounds packets for the various IP
+> braodcast addresses, as well as other reserved addresses (see RFC-990).
+> At least one other gateway system (cisco) allegedly does the same. As
+> you know from my previous messages to this list, gateways that forward
+> IP broadcast packets can creat astonishing mischief in quite surprising
+> places.
+> 
+> Your suggestion on a mechanism to prevent forwarding of multicast
+> packets was suggested to the INENG Task Force some time back; however,
+> implementation in the various Unix bsd's hasn't happened yet. See also
+> the appendix to RFC-985 for further suggestions. Your comments and
+> advice on the issues raised there would be welcome.
+> 
+> Dave
+
+
+SAMPLE ATALKATAB DATABASE FILES
+
+Below we list several common cases that may arise in setting up your
+/etc/atalkatab file.
+
+(1) If all your hosts comply with RFC919/922, you simply use the N1, N2 or
+N3 flags to setup the appropriate broadcast address used by your site.
+This example shows class C addresses and the N1 flag.  Dots '..' show
+uninteresting fields.
+
+	1.33	N1	192.22.33.0	ZZ	#ether cable, west
+	2.1	KC	192.22.33.12	ZZ	#appletalk, chemlab
+		I192.22.33.255	..		#ipbroad
+		..
+		S2.1	S1.33	"ZZ"		#atneta atnete zone
+
+The next example is similar to the above but shows a subnetted class B net,
+where '33' is the subnet number.  Above, '33' was just the third byte
+of the three byte class C net number.  Here the net number is only
+two bytes (128.22) and 33.xx is actually the host part.  However this
+campus adopts the convention that the third byte is a subnet number.
+Additionally some other ether cables are shown.
+
+	1.34	N1	128.22.34.0	ZZ	#ether cable, south
+	1.33	N1	128.22.33.0	ZZ	#ether cable, west
+	2.1	KC	128.22.33.12	ZZ	#appletalk, chemlab
+		I128.22.33.255	..		#ipbroad
+		..
+		S2.1	S1.33	"ZZ"		#atneta atnete zone
+
+(2) If all your hosts are using 4.2 conventions, then here is a class C
+example that would be similar to yours.
+
+	1.33	N0	192.22.33.0	ZZ	#ether cable, west
+	2.1	KC	192.22.33.12	ZZ	#appletalk, chemlab
+		I192.22.33.0	..		#ipbroad
+		..
+		S2.1	S1.33	"ZZ"		#atneta atnete zone
+
+Here is an unusual case.  This is a class B site with subnets, but with
+only 4.2 hosts.  I.e. these 4.2 hosts can only recognize a class B
+broadcast address of the form 128.X.0.0;  the host (subnet number) must
+be zero.  The solution is to use the 'H' flag for the ether cables, and
+to point those nets to kboxes on the same cable.  The 'ipbroad' value
+in the kbox config can then be setup to use any arbitrary broadcast
+address on the local ether cable.
+
+	1.33	H	128.22.33.12	ZZ	#ether cable, west
+	2.1	KC	128.22.33.12	ZZ	#appletalk, chemlab
+		I128.22.0.0	..		#ipbroad
+		..
+		S2.1	S1.33	"ZZ"		#atneta atnete zone
+
+	1.34	H	128.22.34.66	ZZ	#ether cable, south
+	2.2	K	128.22.34.66	ZZ	#appletalk, chemlab
+		I128.22.0.0	..		#ipbroad
+		..
+		S2.2	S1.34	"ZZ"		#atneta atnete zone
+
+The 'H' flag for appletalk nets on ether cables is useful in a number
+of cases when your IP internetwork is not in compliance with
+RFC919/922.  The way it works is as follows:
+
+  (a) When a kbox wishes to send a directed broadcast to that net, it
+  sends the packet to the IP address (following the H), wrapped in a
+  UDP header with the destination port set to a certain 'magic' socket
+  number.  When the kbox (or UNIX atalkrd server) receives this UDP
+  packet, it rebroadcasts it (or resends it to an arbitrary list of
+  addresses) on that cable.  A basic requirement is that the IP address
+  used with H must be on the SAME CABLE as the net being refered to.
+  This is because a kbox, when used as a redirect server, simply
+  broadcasts the packet to the 'ipbroad' configured address.
+
+  (b) When a kbox wishes to send a plain packet (NOT a directed
+  broadcast) to that net, it forms the IP address by stripping the low
+  byte from the H IP address, and ORing in the appletalk node number.
+  This is another reason that the IP address must be on the same
+  cable as the net being refered to.
+
+  (c) So, if the ether cable you are refering to with the H flag does
+  not happen to have a kbox also on the same cable, you must point the
+  H net to a UNIX host running atalkrd on that cable.
+
+Examples of when you might need to use the H flag could be:
+
+  (a) Your main campus IP gateways can't pass IP directed broadcasts.
+  Here you should be able to use kboxes or atalkrd as rebroadcasters.
+  If you need to use atalkrd, you can just give it the appropriate
+  broadcast address for the local cable.
+
+  (b) You have a mix of old and new format broadcast addresses.  Here
+  you have a choice.  If you have MOSTLY one format, you can just
+  choose to ignore the other format (not all your UNIX hosts need to be
+  running CAP/EFS/PAPIF).  Or you can use the atalkrd daemon and give
+  it a specific list of hosts on that cable to reforward to.

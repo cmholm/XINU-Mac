@@ -1,0 +1,5 @@
+#!/bin/sh
+# shell file to copy a mac file to a unix text file
+# usage:	efsgettext sourcefile destdirectory
+file=`expr $1 : '.*/\(.*\)' '|' $1`
+tr "\015" "\012" <$1.DF >$2/$file

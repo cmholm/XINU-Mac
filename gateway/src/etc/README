@@ -1,0 +1,19 @@
+This directory contains support files for the KIP gateway.
+
+README		this file
+atalk.local	sample host number database, copied to /etc
+atalkad.c	appletalk admin daemon
+atalkrd.c	appletalk rebroadcast daemon (not usually needed)
+atalkatab	sample database for atalkad, copied to /etc
+b.out.h		68K object file format, used by dl68.c
+broadcast	document discussing IP broadcasting issues
+dl68.c		binary to hex conversion utility used by SUMacC;
+		or use native utility, such as 'hex'.
+efsgettext	shell files to convert EFS text files
+efsputtext	..
+install		installation document
+ip.at		specification for IP on AppleTalk
+makefile	makefile for C progs in this dir
+prompt.config	sample config file used by Kinetics 'prompt' program 
+rev1086		documents the 10/86 revision of the gateway
+stackdump	how to interpret Kinetics stack dumps
