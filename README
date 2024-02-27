@@ -1,3 +1,11 @@
+# XINU-Mac
+The Macintosh 68k port of the Xinu operating system, originally released in 1989.
+
+MacXINU is used just as any other pre-OS X Macintosh application; it can be double-clicked from the Macintosh Finder or invoked by name from the Aztec [compiler] shell. Unlike NetBSD/mac68k, it does not load a new kernel in place of the classic MacOS. XINU runs on 512K Macintoshes with old or new ROMs and on Mac Plusses [and, I suspect, on a Mac SE].  It will not run on a 128K Macintosh, because it does not have enough memory.  It does not yet run on a Macintosh II.
+
+The original build environment was the Macintosh-native release of Aztec C. As of 2024, this version of the compiler is as rare as hen's teeth, and unavailable on the Aztec and classic Macintosh software repositories that I'm aware of. As a result, this code will likely need to be massaged for use with more readily available copies of CodeWarrior, Lightspeed/Think, MPW, or Retro68 C.
+
+
 			   X I N U
 			   -------
 
